@@ -1,0 +1,1196 @@
+openapi: 3.1.0
+info:
+  title: GoMoney API
+  description: |
+    API для управления личными финансами.
+    
+    ## Авторизация
+    Для доступа к защищенным эндпоинтам необходимо добавить заголовок:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    
+    Получить токен можно через `/api/v1/auth/login`.
+
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Локальный сервер разработки
+  - url: https://gomoney.example.com/api/v1
+    description: Продуктивный сервер
+
+tags:
+  - name: Auth
+    description: Аутентификация и управление пользователями
+  - name: Transactions
+    description: Управление финансовыми операциями
+  - name: Categories
+    description: Управление категориями транзакций
+  - name: Analytics
+    description: Аналитика и отчетность
+  - name: Health
+    description: Проверка здоровья сервиса
+
+paths:
+  # ========== Аутентификация ==========
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация нового пользователя
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Пользователь успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Неверные входные данные
+        '409':
+          description: Пользователь уже существует
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход в систему
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Неверные учетные данные
+        '400':
+          description: Неверный формат запроса
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Обновление access токена
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Токен обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          description: Неверный refresh токен
+
+  /auth/profile:
+    get:
+      tags: [Auth]
+      summary: Получение профиля пользователя
+      operationId: getProfile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Не авторизован
+        '404':
+          description: Пользователь не найден
+
+    put:
+      tags: [Auth]
+      summary: Обновление профиля
+      operationId: updateProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Профиль обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateProfileResponse'
+        '400':
+          description: Неверные данные
+        '401':
+          description: Не авторизован
+
+  # ========== Транзакции ==========
+  /transactions:
+    post:
+      tags: [Transactions]
+      summary: Создание новой транзакции
+      operationId: createTransaction
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Транзакция создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTransactionResponse'
+        '400':
+          description: Неверные данные транзакции
+        '401':
+          description: Не авторизован
+
+    get:
+      tags: [Transactions]
+      summary: Получение списка транзакций
+      operationId: getTransactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: start_date
+          in: query
+          description: Начальная дата (timestamp)
+          schema:
+            type: integer
+        - name: end_date
+          in: query
+          description: Конечная дата (timestamp)
+          schema:
+            type: integer
+        - name: category_id
+          in: query
+          description: ID категории для фильтрации
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Тип транзакции (income/expense)
+          schema:
+            type: string
+            enum: [income, expense]
+        - name: limit
+          in: query
+          description: Количество записей на странице
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Смещение для пагинации
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: sort_by
+          in: query
+          description: Поле для сортировки
+          schema:
+            type: string
+            enum: [date, amount, created_at]
+            default: date
+        - name: sort_desc
+          in: query
+          description: Сортировка по убыванию
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Список транзакций
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTransactionsResponse'
+        '401':
+          description: Не авторизован
+
+  /transactions/{transaction_id}:
+    get:
+      tags: [Transactions]
+      summary: Получение транзакции по ID
+      operationId: getTransaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID транзакции
+      responses:
+        '200':
+          description: Данные транзакции
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTransactionResponse'
+        '401':
+          description: Не авторизован
+        '404':
+          description: Транзакция не найдена
+
+    put:
+      tags: [Transactions]
+      summary: Обновление транзакции
+      operationId: updateTransaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionRequest'
+      responses:
+        '200':
+          description: Транзакция обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateTransactionResponse'
+        '400':
+          description: Неверные данные
+        '401':
+          description: Не авторизован
+        '404':
+          description: Транзакция не найдена
+
+    delete:
+      tags: [Transactions]
+      summary: Удаление транзакции
+      operationId: deleteTransaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Транзакция удалена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteTransactionResponse'
+        '401':
+          description: Не авторизован
+        '404':
+          description: Транзакция не найдена
+
+  /transactions/balance:
+    get:
+      tags: [Transactions]
+      summary: Получение текущего баланса
+      operationId: getBalance
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: currency
+          in: query
+          description: Валюта для расчета баланса
+          schema:
+            type: string
+            default: RUB
+      responses:
+        '200':
+          description: Баланс пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBalanceResponse'
+        '401':
+          description: Не авторизован
+
+  # ========== Категории ==========
+  /categories:
+    post:
+      tags: [Categories]
+      summary: Создание новой категории
+      operationId: createCategory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Категория создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCategoryResponse'
+        '400':
+          description: Неверные данные
+        '401':
+          description: Не авторизован
+
+    get:
+      tags: [Categories]
+      summary: Получение списка категорий
+      operationId: getCategories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Тип категории (income/expense)
+          schema:
+            type: string
+            enum: [income, expense]
+      responses:
+        '200':
+          description: Список категорий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCategoriesResponse'
+        '401':
+          description: Не авторизован
+
+  /categories/{category_id}:
+    put:
+      tags: [Categories]
+      summary: Обновление категории
+      operationId: updateCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Категория обновлена
+        '400':
+          description: Неверные данные
+        '401':
+          description: Не авторизован
+        '404':
+          description: Категория не найдена
+
+    delete:
+      tags: [Categories]
+      summary: Удаление категории
+      operationId: deleteCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Категория удалена
+        '401':
+          description: Не авторизован
+        '404':
+          description: Категория не найдена
+
+  # ========== Аналитика ==========
+
+
+  /analytics/monthly/{year}/{month}:
+    get:
+      tags: [Analytics]
+      summary: Месячный отчет
+      operationId: getMonthlyReport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        '200':
+          description: Месячный отчет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetMonthlyReportResponse'
+        '401':
+          description: Не авторизован
+
+  /analytics/yearly/{year}:
+    get:
+      tags: [Analytics]
+      summary: Годовой отчет
+      operationId: getYearlyReport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+      responses:
+        '200':
+          description: Годовой отчет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetYearlyReportResponse'
+        '401':
+          description: Не авторизован
+
+  /analytics/category-stats:
+    get:
+      tags: [Analytics]
+      summary: Статистика по категориям
+      operationId: getCategoryStats
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Тип транзакций (income/expense)
+          schema:
+            type: string
+            enum: [income, expense]
+        - name: start_date
+          in: query
+          description: Начальная дата (timestamp)
+          schema:
+            type: integer
+        - name: end_date
+          in: query
+          description: Конечная дата (timestamp)
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          description: Количество топ-категорий
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 20
+      responses:
+        '200':
+          description: Статистика по категориям
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCategoryStatsResponse'
+        '401':
+          description: Не авторизован
+
+  /analytics/trends:
+    get:
+      tags: [Analytics]
+      summary: Анализ трендов
+      operationId: getTrends
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          description: Тип данных (income/expense)
+          schema:
+            type: string
+            enum: [income, expense]
+        - name: period
+          in: query
+          required: true
+          description: Период агрегации
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+        - name: start_date
+          in: query
+          required: true
+          description: Начальная дата (timestamp)
+          schema:
+            type: integer
+        - name: end_date
+          in: query
+          required: true
+          description: Конечная дата (timestamp)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Данные трендов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTrendsResponse'
+        '401':
+          description: Не авторизован
+
+  # ========== Health Check ==========
+  /health:
+    get:
+      tags: [Health]
+      summary: Проверка здоровья сервиса
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Сервис работает
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+        '503':
+          description: Сервис недоступен
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # Схемы запросов и ответов
+  schemas:
+    # Аутентификация
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: "securepassword123"
+        first_name:
+          type: string
+          example: "Иван"
+        last_name:
+          type: string
+          example: "Иванов"
+
+    RegisterResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_at:
+          type: integer
+          format: int64
+        profile:
+          $ref: '#/components/schemas/UserProfile'
+
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_at:
+          type: integer
+          format: int64
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+
+    UpdateProfileResponse:
+      type: object
+      properties:
+        profile:
+          $ref: '#/components/schemas/UserProfile'
+        message:
+          type: string
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        updated_at:
+          type: integer
+          format: int64
+
+    # Транзакции
+    CreateTransactionRequest:
+      type: object
+      required: [amount, currency, type]
+      properties:
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 1500.50
+        currency:
+          type: string
+          enum: [RUB, USD, EUR, KZT]
+          default: RUB
+        category_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+          example: "Обед в кафе"
+        date:
+          type: integer
+          format: int64
+          description: "Timestamp транзакции"
+        type:
+          type: string
+          enum: [income, expense]
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["food", "lunch"]
+
+    CreateTransactionResponse:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+          format: uuid
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+
+    GetTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        total:
+          type: integer
+        total_income:
+          type: number
+          format: double
+        total_expense:
+          type: number
+          format: double
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    GetTransactionResponse:
+      type: object
+      properties:
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+
+    UpdateTransactionRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+        category_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        date:
+          type: integer
+          format: int64
+        tags:
+          type: array
+          items:
+            type: string
+
+    UpdateTransactionResponse:
+      type: object
+      properties:
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+
+    DeleteTransactionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    GetBalanceResponse:
+      type: object
+      properties:
+        balance:
+          type: number
+          format: double
+        currency:
+          type: string
+        total_income:
+          type: number
+          format: double
+        total_expense:
+          type: number
+          format: double
+        period_start:
+          type: integer
+          format: int64
+        period_end:
+          type: integer
+          format: int64
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/Category'
+        description:
+          type: string
+        date:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [income, expense]
+        tags:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: integer
+          format: int64
+        updated_at:
+          type: integer
+          format: int64
+
+    # Категории
+    CreateCategoryRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          example: "Продукты"
+        type:
+          type: string
+          enum: [income, expense]
+        color:
+          type: string
+          format: hex-color
+          example: "#FF5733"
+        icon:
+          type: string
+          example: "shopping-cart"
+        parent_id:
+          type: string
+          format: uuid
+
+    CreateCategoryResponse:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/Category'
+
+    GetCategoriesResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+          format: hex-color
+        icon:
+          type: string
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [income, expense]
+        color:
+          type: string
+          format: hex-color
+        icon:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+        created_at:
+          type: integer
+          format: int64
+        updated_at:
+          type: integer
+          format: int64
+
+    # Аналитика
+    GetMonthlyReportResponse:
+      type: object
+      properties:
+        total_income:
+          type: number
+          format: double
+        total_expense:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double
+        daily_summaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailySummary'
+        category_stats:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryStat'
+        comparisons:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyComparison'
+        month:
+          type: integer
+        year:
+          type: integer
+
+    GetYearlyReportResponse:
+      type: object
+      properties:
+        total_income:
+          type: number
+          format: double
+        total_expense:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double
+        monthly_summaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlySummary'
+        category_stats:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryStat'
+        trend:
+          $ref: '#/components/schemas/YearlyTrend'
+        year:
+          type: integer
+
+    GetCategoryStatsResponse:
+      type: object
+      properties:
+        category_stats:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryStat'
+        total_amount:
+          type: number
+          format: double
+        period_start:
+          type: integer
+          format: int64
+        period_end:
+          type: integer
+          format: int64
+
+    GetTrendsResponse:
+      type: object
+      properties:
+        trend_points:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendPoint'
+        average:
+          type: number
+          format: double
+        change_percentage:
+          type: number
+          format: double
+        is_increasing:
+          type: boolean
+
+    # Вспомогательные схемы аналитики
+    CategoryStat:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+        type:
+          type: string
+          enum: [income, expense]
+        amount:
+          type: number
+          format: double
+        percentage:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        transaction_count:
+          type: integer
+
+    TransactionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        category:
+          type: string
+        description:
+          type: string
+        date:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [income, expense]
+
+    DailySummary:
+      type: object
+      properties:
+        date:
+          type: integer
+          format: int64
+        income:
+          type: number
+          format: double
+        expense:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double
+
+    MonthlySummary:
+      type: object
+      properties:
+        month:
+          type: integer
+        income:
+          type: number
+          format: double
+        expense:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double
+
+    MonthlyComparison:
+      type: object
+      properties:
+        month:
+          type: integer
+        current_amount:
+          type: number
+          format: double
+        previous_amount:
+          type: number
+          format: double
+        change_percentage:
+          type: number
+          format: double
+        type:
+          type: string
+          enum: [income, expense]
+
+    YearlyTrend:
+      type: object
+      properties:
+        total_growth:
+          type: number
+          format: double
+        monthly_average:
+          type: number
+          format: double
+        monthly_trends:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyTrend'
+        trend_direction:
+          type: string
+          enum: [up, down, stable]
+
+    MonthlyTrend:
+      type: object
+      properties:
+        month:
+          type: integer
+        value:
+          type: number
+          format: double
+        growth:
+          type: number
+          format: double
+
+    TrendPoint:
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          format: int64
+        value:
+          type: number
+          format: double
+        label:
+          type: string

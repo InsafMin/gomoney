@@ -143,7 +143,7 @@ gomoney/
 
 ```bash
 # Клонировать репозиторий
-git clone <repo-url>
+git clone https://github.com/InsafMin/gomoney.git
 cd gomoney
 
 # Запустить все сервисы
@@ -282,7 +282,7 @@ grpcurl localhost:50051 grpc.health.v1.Health/Check
 DB_HOST=localhost
 DB_PORT=5432
 REDIS_HOST=localhost
-JWT_SECRET=your-secret-key
+JWT_SECRET=
 GRPC_PORT=50051
 ```
 

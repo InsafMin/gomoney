@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package analytics;
+
+option go_package = "github.com/InsafMin/gomoney/shared/proto";
+
+import "google/protobuf/timestamp.proto";
+
+// Сервис аналитики и отчетности
+service AnalyticsService {
+  // Получить дневной отчет
+  rpc GetDailyReport(DailyReportRequest) returns (DailyReportResponse);
+
+  // Получить отчет за период
+  rpc GetPeriodReport(PeriodReportRequest) returns (PeriodReportResponse);
+
+  // Получить статистику по категориям
+  rpc GetCategoryStats(CategoryStatsRequest) returns (CategoryStatsResponse);
+
+  // Получить данные трендов
+  rpc GetTrend(TrendRequest) returns (TrendResponse);
+
+  // Получить сравнение месяцев
+  rpc GetMonthlyComparison(MonthlyComparisonRequest) returns (MonthlyComparisonResponse);
+}
+
+// Запрос дневного отчета
+message DailyReportRequest {
+  string user_id = 1;
+  google.protobuf.Timestamp date = 2;
+}
+
+// Ответ с дневным отчетом
+message DailyReportResponse {
+  google.protobuf.Timestamp date = 1;
+  double income = 2;
+  double expense = 3;
+  double balance = 4;
+  repeated CategoryStat stats = 5;
+}
+
+// Запрос отчета за период
+message PeriodReportRequest {
+  string user_id = 1;
+  google.protobuf.Timestamp start_date = 2;
+  google.protobuf.Timestamp end_date = 3;
+}
+
+// Ответ с отчетом за период
+message PeriodReportResponse {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+  double income = 3;
+  double expense = 4;
+  double balance = 5;
+}
+
+// Запрос статистики по категориям
+message CategoryStatsRequest {
+  string user_id = 1;
+  string type = 2; // "income" или "expense", пустая строка - все
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
+  int32 limit = 5; // Топ N категорий
+}
+
+// Ответ со статистикой по категориям
+message CategoryStatsResponse {
+  repeated CategoryStat stats = 1;
+}
+
+// Запрос данных трендов
+message TrendRequest {
+  string user_id = 1;
+  string type = 2; // "income" или "expense"
+  string period = 3; // "daily", "weekly", "monthly"
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+}
+
+// Ответ с данными трендов
+message TrendResponse {
+  string period = 1;
+  string type = 2;
+  int32 total_count = 3;
+  repeated TrendPoint points = 4;
+}
+
+// Запрос сравнения месяцев
+message MonthlyComparisonRequest {
+  string user_id = 1;
+  google.protobuf.Timestamp month = 2;
+}
+
+// Ответ со сравнением месяцев
+message MonthlyComparisonResponse {
+  double current_income = 1;
+  double current_expense = 2;
+  double current_balance = 3;
+  double previous_income = 4;
+  double previous_expense = 5;
+  double previous_balance = 6;
+  double income_change = 7;
+  double expense_change = 8;
+}
+
+// Статистика по категории
+message CategoryStat {
+  string category_id = 1;
+  string category_name = 2;
+  string type = 3; // "income" или "expense"
+  double amount = 4;
+  int32 transaction_count = 5;
+  double percentage = 6; // Процент от общей суммы
+}
+
+// Точка на графике тренда
+message TrendPoint {
+  google.protobuf.Timestamp date = 1;
+  double amount = 2;
+}
+

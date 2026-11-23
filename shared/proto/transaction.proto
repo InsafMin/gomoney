@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+package transaction;
+
+option go_package = "github.com/InsafMin/gomoney/shared/proto";
+
+// Сервис управления финансовыми операциями
+service TransactionService {
+  // Создание новой транзакции
+  rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse);
+
+  // Получение списка транзакций с фильтрацией
+  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse);
+
+  // Получение транзакции по ID
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
+
+  // Обновление транзакции
+  rpc UpdateTransaction(UpdateTransactionRequest) returns (UpdateTransactionResponse);
+
+  // Удаление транзакции
+  rpc DeleteTransaction(DeleteTransactionRequest) returns (DeleteTransactionResponse);
+
+  // Получение баланса пользователя
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+
+  // Управление категориями
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (UpdateCategoryResponse);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse);
+}
+
+// Сообщения для транзакций
+message CreateTransactionRequest {
+  string user_id = 1;
+  double amount = 2;
+  string currency = 3;
+  string category_id = 4;
+  string description = 5;
+  int64 date = 6;
+  string type = 7; // "income" или "expense"
+  repeated string tags = 8;
+}
+
+message CreateTransactionResponse {
+  string transaction_id = 1;
+  Transaction transaction = 2;
+}
+
+message GetTransactionsRequest {
+  string user_id = 1;
+  optional int64 start_date = 2;
+  optional int64 end_date = 3;
+  optional string category_id = 4;
+  optional string type = 5;
+  optional int32 limit = 6;
+  optional int32 offset = 7;
+  optional string sort_by = 8; // "date", "amount", "created_at"
+  optional bool sort_desc = 9;
+}
+
+message GetTransactionsResponse {
+  repeated Transaction transactions = 1;
+  int32 total = 2;
+  double total_income = 3;
+  double total_expense = 4;
+  int32 page = 5;
+  int32 page_size = 6;
+}
+
+message GetTransactionRequest {
+  string transaction_id = 1;
+  string user_id = 2;
+}
+
+message GetTransactionResponse {
+  Transaction transaction = 1;
+}
+
+message UpdateTransactionRequest {
+  string transaction_id = 1;
+  string user_id = 2;
+  optional double amount = 3;
+  optional string category_id = 4;
+  optional string description = 5;
+  optional int64 date = 6;
+  repeated string tags = 7;
+}
+
+message UpdateTransactionResponse {
+  Transaction transaction = 1;
+}
+
+message DeleteTransactionRequest {
+  string transaction_id = 1;
+  string user_id = 2;
+}
+
+message DeleteTransactionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Сообщения для баланса
+message GetBalanceRequest {
+  string user_id = 1;
+  optional string currency = 2;
+}
+
+message GetBalanceResponse {
+  double balance = 1;
+  string currency = 2;
+  double total_income = 3;
+  double total_expense = 4;
+  int64 period_start = 5;
+  int64 period_end = 6;
+}
+
+// Сообщения для категорий
+message CreateCategoryRequest {
+  string user_id = 1;
+  string name = 2;
+  string type = 3; // "income" или "expense"
+  optional string color = 4;
+  optional string icon = 5;
+  optional string parent_id = 6;
+}
+
+message CreateCategoryResponse {
+  string category_id = 1;
+  Category category = 2;
+}
+
+message GetCategoriesRequest {
+  string user_id = 1;
+  optional string type = 2;
+}
+
+message GetCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message UpdateCategoryRequest {
+  string category_id = 1;
+  string user_id = 2;
+  optional string name = 3;
+  optional string color = 4;
+  optional string icon = 5;
+}
+
+message UpdateCategoryResponse {
+  Category category = 1;
+}
+
+message DeleteCategoryRequest {
+  string category_id = 1;
+  string user_id = 2;
+}
+
+message DeleteCategoryResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Общие структуры
+message Transaction {
+  string id = 1;
+  string user_id = 2;
+  double amount = 3;
+  string currency = 4;
+  string category_id = 5;
+  Category category = 6;
+  string description = 7;
+  int64 date = 8;
+  string type = 9;
+  repeated string tags = 10;
+  int64 created_at = 11;
+  int64 updated_at = 12;
+}
+
+message Category {
+  string id = 1;
+  string user_id = 2;
+  string name = 3;
+  string type = 4;
+  string color = 5;
+  string icon = 6;
+  optional string parent_id = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
+}
